@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pl.nbp.copilot.image.ImageTooLargeException;
 import pl.nbp.copilot.llm.LlmParseException;
+import pl.nbp.copilot.session.SessionNotFoundException;
 import pl.nbp.copilot.web.dto.ErrorBody;
 import pl.nbp.copilot.web.dto.ErrorResponse;
 import pl.nbp.copilot.web.dto.FieldError;
@@ -28,6 +29,7 @@ import java.util.List;
  *   <li>{@link MethodArgumentNotValidException} / {@link BindException} — 400, {@code VALIDATION_ERROR}</li>
  *   <li>{@link ConstraintViolationException} — 400, {@code VALIDATION_ERROR}</li>
  *   <li>{@link ImageTooLargeException} — 400, {@code IMAGE_TOO_LARGE}</li>
+ *   <li>{@link pl.nbp.copilot.session.SessionNotFoundException} — 404, {@code SESSION_NOT_FOUND}</li>
  *   <li>{@link LlmParseException} — 502, {@code LLM_ERROR}</li>
  *   <li>Fallback {@link RuntimeException} — 503, {@code SERVICE_UNAVAILABLE} (SDK/network errors)</li>
  *   <li>Fallback {@link Exception} — 500, {@code INTERNAL_ERROR}</li>
@@ -44,6 +46,7 @@ public class GlobalExceptionHandler {
     private static final String CODE_LLM_ERROR = "LLM_ERROR";
     private static final String CODE_SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE";
     private static final String CODE_INVALID_ENUM_VALUE = "INVALID_ENUM_VALUE";
+    private static final String CODE_SESSION_NOT_FOUND = "SESSION_NOT_FOUND";
 
     private static final String MSG_VALIDATION = "Formularz zawiera błędy walidacji.";
     private static final String MSG_INTERNAL = "Wystąpił nieoczekiwany błąd.";
@@ -53,6 +56,7 @@ public class GlobalExceptionHandler {
             "Nie udało się przetworzyć odpowiedzi asystenta. Spróbuj ponownie.";
     private static final String MSG_SERVICE_UNAVAILABLE =
             "Usługa tymczasowo niedostępna. Spróbuj ponownie za chwilę.";
+    private static final String MSG_SESSION_NOT_FOUND = "Sesja nie istnieje lub wygasła.";
 
     /**
      * Handles Bean Validation failures on {@code @RequestBody} parameters.
@@ -165,6 +169,25 @@ public class GlobalExceptionHandler {
         log.error("LLM parse error: {}", ex.getMessage());
         ErrorBody body = new ErrorBody(CODE_LLM_ERROR, MSG_LLM_ERROR, null);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(body));
+    }
+
+    /**
+     * Handles a request for a session that does not exist or has expired.
+     *
+     * <p>Also covers the synchronous validation path for
+     * {@code GET /api/sessions/{id}} and any other controller that throws
+     * {@link SessionNotFoundException} before the response is committed.
+     * For the SSE endpoint, errors after the emitter is returned are handled
+     * by the virtual thread in the controller itself.
+     *
+     * @param ex the session-not-found exception
+     * @return {@code 404 Not Found} with {@code SESSION_NOT_FOUND} code
+     */
+    @ExceptionHandler(SessionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSessionNotFound(SessionNotFoundException ex) {
+        log.warn("Session not found: {}", ex.getMessage());
+        ErrorBody body = new ErrorBody(CODE_SESSION_NOT_FOUND, MSG_SESSION_NOT_FOUND, null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(body));
     }
 
     /**
