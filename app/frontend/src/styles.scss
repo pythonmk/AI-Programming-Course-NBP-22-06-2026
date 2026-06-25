@@ -1,1 +1,53 @@
-/* You can add global styles to this file, and also import other style files */
+// Angular Material M3 theme — NBP brand colors
+// Primary: navy #152E52, Tertiary: gold #BDAD7D
+@use '@angular/material' as mat;
+@use './styles/theme-colors' as nbp-theme;
+@use './styles/tokens';
+
+// Google Fonts: Brygada 1918 (headings) + Libre Franklin (body)
+// Also referenced in index.html via <link> for faster rendering
+@import url('https://fonts.googleapis.com/css2?family=Brygada+1918:ital,wght@0,400..700;1,400..700&family=Libre+Franklin:ital,wght@0,100..900;1,100..900&display=swap');
+
+html {
+  @include mat.theme((
+    color: (
+      primary: nbp-theme.$primary-palette,
+      tertiary: nbp-theme.$tertiary-palette,
+    ),
+    typography: "Libre Franklin",
+    density: 0,
+  ));
+}
+
+// --- Base / Reset ---
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-default);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  color: var(--color-text-heading);
+  line-height: 1.33;
+  margin: 0 0 var(--space-4);
+}
+
+a {
+  color: var(--color-text-link);
+}
