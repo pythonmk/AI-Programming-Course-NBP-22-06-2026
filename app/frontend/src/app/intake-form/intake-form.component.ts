@@ -23,6 +23,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatCardModule } from '@angular/material/card';
 
@@ -53,6 +54,7 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 @Component({
   selector: 'app-intake-form',
   standalone: true,
+  providers: [provideNativeDateAdapter()],
   imports: [
     ReactiveFormsModule,
     MatFormFieldModule,
