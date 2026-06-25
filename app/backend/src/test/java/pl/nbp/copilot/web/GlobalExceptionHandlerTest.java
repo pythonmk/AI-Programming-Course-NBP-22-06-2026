@@ -112,25 +112,25 @@ class GlobalExceptionHandlerTest {
     }
 
     // -----------------------------------------------------------------------
-    // Tests — unexpected exception (500)
+    // Tests — RuntimeException (503 SERVICE_UNAVAILABLE)
     // -----------------------------------------------------------------------
 
     @Test
-    @DisplayName("POST to exploding endpoint returns 500 with INTERNAL_ERROR code")
-    void postExplodingEndpoint_returns500_withInternalErrorCode() throws Exception {
+    @DisplayName("POST to exploding endpoint returns 503 with SERVICE_UNAVAILABLE code")
+    void postExplodingEndpoint_returns503_withServiceUnavailableCode() throws Exception {
         mockMvc.perform(post("/test-stub/explode")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"));
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error.code").value("SERVICE_UNAVAILABLE"));
     }
 
     @Test
-    @DisplayName("POST to exploding endpoint returns Polish messagePl")
-    void postExplodingEndpoint_returns500_withPolishMessagePl() throws Exception {
+    @DisplayName("POST to exploding endpoint returns Polish messagePl for SERVICE_UNAVAILABLE")
+    void postExplodingEndpoint_returns503_withPolishMessagePl() throws Exception {
         mockMvc.perform(post("/test-stub/explode")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error.messagePl").value("Wystąpił nieoczekiwany błąd."));
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error.messagePl").value("Usługa tymczasowo niedostępna. Spróbuj ponownie za chwilę."));
     }
 
     @Test
@@ -138,7 +138,7 @@ class GlobalExceptionHandlerTest {
     void postExplodingEndpoint_doesNotExposeFieldErrors() throws Exception {
         mockMvc.perform(post("/test-stub/explode")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.error.fieldErrors").doesNotExist());
     }
 }

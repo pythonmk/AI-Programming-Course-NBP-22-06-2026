@@ -7,8 +7,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import pl.nbp.copilot.image.ImageTooLargeException;
+import pl.nbp.copilot.llm.LlmParseException;
 import pl.nbp.copilot.web.dto.ErrorBody;
 import pl.nbp.copilot.web.dto.ErrorResponse;
 import pl.nbp.copilot.web.dto.FieldError;
@@ -24,11 +27,11 @@ import java.util.List;
  * <ul>
  *   <li>{@link MethodArgumentNotValidException} / {@link BindException} — 400, {@code VALIDATION_ERROR}</li>
  *   <li>{@link ConstraintViolationException} — 400, {@code VALIDATION_ERROR}</li>
+ *   <li>{@link ImageTooLargeException} — 400, {@code IMAGE_TOO_LARGE}</li>
+ *   <li>{@link LlmParseException} — 502, {@code LLM_ERROR}</li>
+ *   <li>Fallback {@link RuntimeException} — 503, {@code SERVICE_UNAVAILABLE} (SDK/network errors)</li>
  *   <li>Fallback {@link Exception} — 500, {@code INTERNAL_ERROR}</li>
  * </ul>
- *
- * <p>Future handlers (not-found, LLM-failure) can be added as additional
- * {@code @ExceptionHandler} methods without modifying the existing ones.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -37,8 +40,19 @@ public class GlobalExceptionHandler {
 
     private static final String CODE_VALIDATION = "VALIDATION_ERROR";
     private static final String CODE_INTERNAL = "INTERNAL_ERROR";
+    private static final String CODE_IMAGE_TOO_LARGE = "IMAGE_TOO_LARGE";
+    private static final String CODE_LLM_ERROR = "LLM_ERROR";
+    private static final String CODE_SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE";
+    private static final String CODE_INVALID_ENUM_VALUE = "INVALID_ENUM_VALUE";
+
     private static final String MSG_VALIDATION = "Formularz zawiera błędy walidacji.";
     private static final String MSG_INTERNAL = "Wystąpił nieoczekiwany błąd.";
+    private static final String MSG_IMAGE_TOO_LARGE =
+            "Skompresowany obraz przekracza dozwolony rozmiar. Prześlij mniejszy lub mniej szczegółowy obraz.";
+    private static final String MSG_LLM_ERROR =
+            "Nie udało się przetworzyć odpowiedzi asystenta. Spróbuj ponownie.";
+    private static final String MSG_SERVICE_UNAVAILABLE =
+            "Usługa tymczasowo niedostępna. Spróbuj ponownie za chwilę.";
 
     /**
      * Handles Bean Validation failures on {@code @RequestBody} parameters.
@@ -87,12 +101,99 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Fallback handler for any unhandled exception.
+     * Handles missing required request parameters (e.g. absent {@code @RequestParam}).
+     *
+     * @param ex the missing parameter exception from Spring MVC binding
+     * @return {@code 400 Bad Request} with {@code VALIDATION_ERROR} code and field-level detail
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException ex) {
+        List<FieldError> fieldErrors = List.of(
+                new FieldError(ex.getParameterName(), "Pole jest wymagane."));
+        return badRequest(fieldErrors);
+    }
+
+    /**
+     * Handles controller-level field validation failures not covered by Bean Validation
+     * (e.g. future purchase date, conditional reason requirement).
+     *
+     * @param ex the validation exception with field name and Polish message
+     * @return {@code 400 Bad Request} with {@code VALIDATION_ERROR} code and field-level detail
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
+        List<FieldError> fieldErrors = List.of(new FieldError(ex.getField(), ex.getMessage()));
+        return badRequest(fieldErrors);
+    }
+
+    /**
+     * Handles invalid enum values in request parameters.
+     *
+     * @param ex the exception with the rejected field and value
+     * @return {@code 400 Bad Request} with {@code INVALID_ENUM_VALUE} code
+     */
+    @ExceptionHandler(InvalidEnumValueException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEnumValue(InvalidEnumValueException ex) {
+        log.warn("Invalid enum value '{}' for field '{}'", ex.getRejectedValue(), ex.getField());
+        ErrorBody body = new ErrorBody(CODE_INVALID_ENUM_VALUE,
+                "Nieprawidłowa wartość '%s' dla pola '%s'.".formatted(ex.getRejectedValue(), ex.getField()),
+                null);
+        return ResponseEntity.badRequest().body(new ErrorResponse(body));
+    }
+
+    /**
+     * Handles compressed image size exceeded errors.
+     *
+     * @param ex the image-too-large exception thrown by the image compressor
+     * @return {@code 400 Bad Request} with {@code IMAGE_TOO_LARGE} code
+     */
+    @ExceptionHandler(ImageTooLargeException.class)
+    public ResponseEntity<ErrorResponse> handleImageTooLarge(ImageTooLargeException ex) {
+        log.warn("Image too large: {}", ex.getMessage());
+        ErrorBody body = new ErrorBody(CODE_IMAGE_TOO_LARGE, MSG_IMAGE_TOO_LARGE, null);
+        return ResponseEntity.badRequest().body(new ErrorResponse(body));
+    }
+
+    /**
+     * Handles cases where the LLM returned unparseable output after all retry attempts.
+     *
+     * @param ex the parse exception thrown by the LLM client
+     * @return {@code 502 Bad Gateway} with {@code LLM_ERROR} code
+     */
+    @ExceptionHandler(LlmParseException.class)
+    public ResponseEntity<ErrorResponse> handleLlmParseException(LlmParseException ex) {
+        log.error("LLM parse error: {}", ex.getMessage());
+        ErrorBody body = new ErrorBody(CODE_LLM_ERROR, MSG_LLM_ERROR, null);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(body));
+    }
+
+    /**
+     * Fallback handler for SDK/network runtime errors (e.g. timeouts, connection failures).
+     *
+     * <p>More specific handlers ({@link ImageTooLargeException}, {@link LlmParseException})
+     * take precedence. This handler catches the remaining {@link RuntimeException} subtypes
+     * (typically thrown by the OpenAI SDK or other service-layer infrastructure).
      *
      * <p>Logs the exception at ERROR level and returns a generic Polish message
      * without leaking internal details to the client.
      *
-     * @param ex the unexpected exception
+     * @param ex the runtime exception
+     * @return {@code 503 Service Unavailable}
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
+        log.error("Service error", ex);
+        ErrorBody body = new ErrorBody(CODE_SERVICE_UNAVAILABLE, MSG_SERVICE_UNAVAILABLE, null);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(body));
+    }
+
+    /**
+     * Fallback handler for any unhandled checked exception.
+     *
+     * <p>Logs the exception at ERROR level and returns a generic Polish message
+     * without leaking internal details to the client.
+     *
+     * @param ex the unexpected checked exception
      * @return {@code 500 Internal Server Error}
      */
     @ExceptionHandler(Exception.class)
