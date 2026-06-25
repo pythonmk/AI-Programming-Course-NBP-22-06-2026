@@ -6,9 +6,12 @@ This is a **course project** for the "AI dla programistów — od pomysłu do MV
 
 This is only the **base starting repository** for the course; concrete decisions are made live with the group.
 
-**Primary demo stack:** TypeScript/Node.js (Next.js, Vercel AI SDK).
-**Java may be used as the main backend language** for this NBP edition (Spring Boot, Spring AI — see `examples/agent-configs/`); the final choice is made with the group during the ADR phase.
-Participants may work in any language (Java, Python, C#, Go, Rust, etc.).
+**Project stack (decided in `docs/ADR/`):**
+- **Backend:** Java 21 + Spring Boot 3.5.x (Spring MVC + `SseEmitter`, virtual threads), `openai-java` `4.41.0` calling LLMs via **OpenRouter** (Chat Completions API; model `anthropic/claude-sonnet-4.6`), Thumbnailator for image compression. Maven via the Maven Wrapper. Under `app/backend`.
+- **Frontend:** Angular 22 + Angular Material 22 + ngx-markdown 22 (standalone, signals, zoneless); SSE consumed via `fetch`+`ReadableStream`. Under `app/frontend`.
+- **Persistence:** in-memory session store in the MVP (SQLite planned).
+
+Participants may still work in any language for their own exercises (Java, Python, C#, Go, Rust, etc.), but the course MVP follows the stack above.
 
 All user-facing text in **Polish**.
 
@@ -49,11 +52,18 @@ If the area has no suitable test infrastructure yet, add it as part of the task 
 
 ### Verification (required before every commit)
 
-Run the commands appropriate for the chosen stack. Typically for a TypeScript project:
+Run the commands appropriate for the changed scope.
+
+Backend (`app/backend`):
 ```bash
-npm test             # unit/integration tests pass
-npm run lint         # ESLint — no errors
-npm run build        # build succeeds
+./mvnw test                  # JUnit 5 / Mockito — all pass
+./mvnw -DskipTests package   # build succeeds
+```
+
+Frontend (`app/frontend`):
+```bash
+npx ng test --watch=false    # Karma/Jasmine — all pass
+npx ng build                 # production build succeeds
 ```
 
 Verify only the scope relevant to your change. If the change affects runtime behavior, confirm the app starts correctly.
@@ -90,9 +100,10 @@ Common libraries (resolve via `resolve-library-id` if the ID changes):
 
 | Library | Context7 ID |
 |---|---|
-| Vercel AI SDK | `/vercel/ai` |
-| Next.js | `/vercel/next.js` |
-| React | `/reactjs/react.dev` |
-| Tailwind CSS | `/tailwindlabs/tailwindcss.com` |
-| Shadcn/ui | `/shadcn-ui/ui` |
-| Mastra | `/mastra-ai/mastra` |
+| Spring Boot | `/spring-projects/spring-boot` |
+| openai-java | `/openai/openai-java` |
+| Jackson | `/fasterxml/jackson` |
+| Thumbnailator | `/coobird/thumbnailator` |
+| Angular | `/angular/angular` |
+| Angular Material / CDK | `/angular/components` |
+| ngx-markdown | `/jfcere/ngx-markdown` |

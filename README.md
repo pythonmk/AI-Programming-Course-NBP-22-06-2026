@@ -17,7 +17,7 @@
 
 To repozytorium zawiera materiały do 5-dniowego kursu **AI w Programowaniu** prowadzonego przez JSystems, w wersji dedykowanej dla **NBP**. Kurs skupia się na workflow pracy z agentami AI (Claude Code, OpenAI Codex CLI), a nie na jednym konkretnym narzędziu.
 
-Uczestnicy pracują w swoim preferowanym języku programowania (Java, Python, C#, Go, Rust i inne). Prowadzący demonstruje rozwiązania w **TypeScript/Node.js** (np. z **Vercel AI SDK**), natomiast **głównym językiem backendu może być Java** — ostateczny wybór zostanie podjęty wspólnie z grupą podczas etapu ADR.
+Uczestnicy mogą pracować w swoim preferowanym języku programowania (Java, Python, C#, Go, Rust i inne). Stack projektu MVP został ustalony w ADR (`docs/ADR/`): **backend w Javie 21 / Spring Boot** (LLM przez OpenRouter z użyciem `openai-java`) oraz **frontend w Angular 22 + Angular Material**.
 
 ### Projekt kursu
 
@@ -52,11 +52,13 @@ examples/            Przykładowe konfiguracje agentów (Java/Spring Boot)
 
 ## Technologie
 
-Kurs jest stack-agnostic. Technologie zostaną wybrane live z grupą podczas ADR. Możliwe opcje:
+Stack projektu MVP został wybrany w ADR (`docs/ADR/`):
 
-- **Java** (możliwy główny backend dla NBP): Spring Boot, Spring AI (zobacz `examples/agent-configs/`)
-- **TypeScript/Node.js** (demo prowadzącego): Next.js, Vercel AI SDK, Mastra
-- Inne stacki wg preferencji uczestników
+- **Backend:** Java 21, Spring Boot 3.5.x (Spring MVC + SSE), `openai-java` przez OpenRouter (model `anthropic/claude-sonnet-4.6`), Thumbnailator
+- **Frontend:** Angular 22, Angular Material 22, ngx-markdown
+- **Sesje:** magazyn w pamięci (SQLite planowane na później)
+
+Uczestnicy mogą realizować własne ćwiczenia w dowolnym stacku (Java, Python, C#, Go, Rust i inne). Przykładowe konfiguracje agentów Java/Spring Boot: `course-materials/agent-configs/`.
 
 ---
 
