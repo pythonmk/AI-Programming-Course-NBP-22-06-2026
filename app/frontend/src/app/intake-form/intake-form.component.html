@@ -1,0 +1,187 @@
+<div class="intake-page">
+  <!-- Page title -->
+  <div class="intake-page__heading">
+    <h1 class="intake-page__title">Zgłoszenie reklamacji lub zwrotu</h1>
+    <p class="intake-page__subtitle">
+      Wypełnij formularz, aby otrzymać wstępną, niezobowiązującą ocenę Twojego zgłoszenia.
+    </p>
+  </div>
+
+  <!-- Error / retry banner -->
+  @if (retryError()) {
+    <div class="intake-error-banner" role="alert">
+      <mat-icon class="intake-error-banner__icon">error_outline</mat-icon>
+      <span class="intake-error-banner__message">{{ retryError() }}</span>
+      <button
+        mat-stroked-button
+        color="warn"
+        type="button"
+        class="intake-error-banner__retry"
+        (click)="onSubmit()"
+      >Spróbuj ponownie</button>
+    </div>
+  }
+
+  <!-- Loading overlay -->
+  @if (isLoading()) {
+    <div class="intake-loading" aria-live="polite">
+      <mat-progress-bar mode="indeterminate" />
+      <p class="intake-loading__text">
+        Analizujemy zdjęcie i przygotowujemy ocenę&hellip;
+      </p>
+    </div>
+  }
+
+  <form
+    class="intake-form"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    novalidate
+  >
+    <!-- 1. Request type -->
+    <mat-form-field appearance="outline" class="intake-form__field">
+      <mat-label>Rodzaj zgłoszenia</mat-label>
+      <mat-select formControlName="requestType">
+        @for (opt of requestTypes(); track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.labelPl }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('requestType')?.hasError('required') && form.get('requestType')?.touched) {
+        <mat-error>Rodzaj zgłoszenia jest wymagany</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- 2. Equipment category -->
+    <mat-form-field appearance="outline" class="intake-form__field">
+      <mat-label>Kategoria sprzętu</mat-label>
+      <mat-select formControlName="equipmentCategory">
+        @for (opt of equipmentCategories(); track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.labelPl }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('equipmentCategory')?.hasError('required') && form.get('equipmentCategory')?.touched) {
+        <mat-error>Kategoria sprzętu jest wymagana</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- 3. Equipment name / model -->
+    <mat-form-field appearance="outline" class="intake-form__field">
+      <mat-label>Nazwa / model sprzętu</mat-label>
+      <input
+        matInput
+        type="text"
+        formControlName="equipmentName"
+        placeholder="np. ThinkPad X1 Carbon"
+      />
+      @if (form.get('equipmentName')?.hasError('required') && form.get('equipmentName')?.touched) {
+        <mat-error>Nazwa/model jest wymagana</mat-error>
+      }
+      @if (form.get('equipmentName')?.hasError('serverError') && form.get('equipmentName')?.touched) {
+        <mat-error>{{ form.get('equipmentName')?.getError('serverError') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- 4. Date of purchase -->
+    <mat-form-field appearance="outline" class="intake-form__field">
+      <mat-label>Data zakupu</mat-label>
+      <input
+        matInput
+        [matDatepicker]="picker"
+        formControlName="purchaseDate"
+        [max]="maxDate"
+        placeholder="DD.MM.RRRR"
+      />
+      <mat-datepicker-toggle matIconSuffix [for]="picker" />
+      <mat-datepicker #picker [startAt]="maxDate" />
+      @if (form.get('purchaseDate')?.hasError('required') && form.get('purchaseDate')?.touched) {
+        <mat-error>Data zakupu jest wymagana</mat-error>
+      }
+      @if (form.get('purchaseDate')?.hasError('matDatepickerMax') && form.get('purchaseDate')?.touched) {
+        <mat-error>Data zakupu nie może być w przyszłości</mat-error>
+      }
+      @if (form.get('purchaseDate')?.hasError('futureDate') && form.get('purchaseDate')?.touched) {
+        <mat-error>{{ form.get('purchaseDate')?.getError('futureDate') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- 5. Reason textarea -->
+    <mat-form-field appearance="outline" class="intake-form__field">
+      <mat-label>{{ reasonLabel() }}</mat-label>
+      <textarea
+        matInput
+        formControlName="reason"
+        rows="4"
+        placeholder="Opisz problem lub powód zwrotu"
+      ></textarea>
+      @if (form.get('reason')?.hasError('required') && form.get('reason')?.touched) {
+        <mat-error>Opis jest wymagany dla reklamacji</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- 6. Image upload -->
+    <div class="intake-form__image-field" [class.intake-form__image-field--error]="imageError() && (submitAttempted() || selectedFile() !== null)">
+      <p class="intake-form__image-label">Zdjęcie sprzętu</p>
+
+      @if (previewUrl()) {
+        <!-- Thumbnail preview -->
+        <div class="intake-form__preview">
+          <img
+            class="intake-form__thumbnail"
+            [src]="previewUrl()"
+            [alt]="selectedFile()?.name ?? 'Podgląd'"
+          />
+          <span class="intake-form__filename">{{ selectedFile()?.name }}</span>
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="Usuń zdjęcie"
+            (click)="removeImage()"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      } @else {
+        <!-- Upload trigger button -->
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="fileInput.click()"
+          [disabled]="isLoading()"
+        >
+          <mat-icon>upload</mat-icon>
+          Wybierz plik (JPG lub PNG, maks. 5 MB)
+        </button>
+      }
+
+      <!-- Hidden native file input -->
+      <input
+        #fileInput
+        type="file"
+        accept="image/jpeg,image/png"
+        style="display:none"
+        (change)="onFileSelected($event)"
+      />
+
+      <!-- Image validation error -->
+      @if (imageError() && (submitAttempted() || selectedFile() !== null || imageError() !== null)) {
+        <p class="intake-form__image-error" role="alert">{{ imageError() }}</p>
+      }
+      @if (!selectedFile() && !imageError() && submitAttempted()) {
+        <p class="intake-form__image-error" role="alert">Zdjęcie jest wymagane</p>
+      }
+    </div>
+
+    <!-- Submit button -->
+    <div class="intake-form__actions">
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="isLoading()"
+        class="intake-form__submit"
+      >
+        Wyślij zgłoszenie
+      </button>
+    </div>
+  </form>
+</div>
