@@ -1,9 +1,12 @@
 package pl.nbp.copilot.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.time.Clock;
 
 /**
  * Spring MVC configuration: CORS mappings for the {@code /api/**} path.
@@ -25,6 +28,20 @@ public class WebConfig implements WebMvcConfigurer {
      */
     public WebConfig(AppProperties appProperties) {
         this.appProperties = appProperties;
+    }
+
+    /**
+     * Provides a {@link Clock} bean backed by the JVM default time zone.
+     *
+     * <p>Injected into {@code EligibilityService} (and any other time-aware
+     * service) so that tests can substitute a fixed clock without touching
+     * static state.
+     *
+     * @return system-default-zone clock
+     */
+    @Bean
+    public Clock clock() {
+        return Clock.systemDefaultZone();
     }
 
     /**
