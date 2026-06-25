@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import pl.nbp.copilot.session.InMemorySessionRepository;
+import pl.nbp.copilot.session.SessionRepository;
 
 import java.time.Clock;
 
@@ -33,15 +35,30 @@ public class WebConfig implements WebMvcConfigurer {
     /**
      * Provides a {@link Clock} bean backed by the JVM default time zone.
      *
-     * <p>Injected into {@code EligibilityService} (and any other time-aware
-     * service) so that tests can substitute a fixed clock without touching
-     * static state.
+     * <p>Injected into {@code EligibilityService} and {@link InMemorySessionRepository}
+     * so that tests can substitute a fixed clock without touching static state.
      *
      * @return system-default-zone clock
      */
     @Bean
     public Clock clock() {
         return Clock.systemDefaultZone();
+    }
+
+    /**
+     * Provides the {@link SessionRepository} bean backed by an in-memory
+     * {@link InMemorySessionRepository}.
+     *
+     * <p>TTL is read from {@code SESSION_TTL_MINUTES} (default 60 minutes).
+     * The clock bean is injected so that tests can override it with a fixed
+     * or mutable clock for deterministic TTL testing.
+     *
+     * @param clock injected clock bean
+     * @return configured session repository
+     */
+    @Bean
+    public SessionRepository sessionRepository(Clock clock) {
+        return new InMemorySessionRepository(clock, appProperties.session().ttlMinutes());
     }
 
     /**

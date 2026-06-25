@@ -180,4 +180,39 @@ public class Session {
     public void addMessage(ChatMessage message) {
         messages.add(message);
     }
+
+    // -----------------------------------------------------------------------
+    // Repository support
+    // -----------------------------------------------------------------------
+
+    /**
+     * Returns a new {@code Session} that is identical to this one but with the
+     * supplied {@code sessionId}, {@code createdAt}, and {@code expiresAt}
+     * values applied, and with the current message list copied over.
+     *
+     * <p>Used by {@link pl.nbp.copilot.session.InMemorySessionRepository} when a
+     * session arrives without a pre-assigned id or without timestamps: the
+     * repository generates the values and calls this method to stamp the session
+     * before storing it. The original session is not mutated.
+     *
+     * @param newSessionId UUID string to assign, must not be {@code null}
+     * @param newCreatedAt creation timestamp to assign, must not be {@code null}
+     * @param newExpiresAt expiry timestamp to assign, must not be {@code null}
+     * @return a new session instance with the supplied fields set
+     */
+    public Session withIdAndTimestamps(String newSessionId, Instant newCreatedAt, Instant newExpiresAt) {
+        Session copy = new Session(
+                newSessionId,
+                this.caseData,
+                this.eligibilityWindows,
+                this.imageAnalysis,
+                this.decision,
+                this.currentDecisionCategory,
+                newCreatedAt,
+                newExpiresAt
+        );
+        // copy messages so they are preserved
+        this.messages.forEach(copy::addMessage);
+        return copy;
+    }
 }
